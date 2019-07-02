@@ -1,5 +1,5 @@
-from .solvers import FixedGridODESolver
-from . import rk_common
+from solvers import FixedGridODESolver
+import rk_common  # from . import rk_common
 
 
 class Euler(FixedGridODESolver):

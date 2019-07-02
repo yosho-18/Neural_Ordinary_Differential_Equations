@@ -1,12 +1,12 @@
 # Based on https://github.com/tensorflow/tensorflow/tree/master/tensorflow/contrib/integrate
 import torch
-from .misc import (
+from misc import (
     _scaled_dot_product, _convert_to_tensor, _is_finite, _select_initial_step, _handle_unused_kwargs, _is_iterable,
     _optimal_step_size, _compute_error_ratio
 )
-from .solvers import AdaptiveStepsizeODESolver
-from .interp import _interp_fit, _interp_evaluate
-from .rk_common import _RungeKuttaState, _ButcherTableau, _runge_kutta_step
+from solvers import AdaptiveStepsizeODESolver
+from interp import _interp_fit, _interp_evaluate
+from rk_common import _RungeKuttaState, _ButcherTableau, _runge_kutta_step
 
 _DORMAND_PRINCE_SHAMPINE_TABLEAU = _ButcherTableau(
     alpha=[1 / 5, 3 / 10, 4 / 5, 8 / 9, 1., 1.],

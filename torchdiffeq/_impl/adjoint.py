@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
-from . import odeint
-from .misc import _flatten, _flatten_convert_none_to_zeros
+from odeint import odeint  # from . import odeint
+from misc import _flatten, _flatten_convert_none_to_zeros
 
 
 class OdeintAdjointMethod(torch.autograd.Function):

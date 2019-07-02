@@ -1,6 +1,6 @@
 import abc
 import torch
-from .misc import _assert_increasing, _handle_unused_kwargs
+from misc import _assert_increasing, _handle_unused_kwargs
 
 
 class AdaptiveStepsizeODESolver(object):

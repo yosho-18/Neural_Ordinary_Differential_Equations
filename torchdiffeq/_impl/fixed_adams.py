@@ -1,8 +1,8 @@
 import sys
 import collections
-from .solvers import FixedGridODESolver
-from .misc import _scaled_dot_product, _has_converged
-from . import rk_common
+from solvers import FixedGridODESolver
+from misc import _scaled_dot_product, _has_converged
+import rk_common  # from . import rk_common
 
 _BASHFORTH_COEFFICIENTS = [
     [],  # order 0

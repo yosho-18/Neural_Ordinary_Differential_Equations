@@ -1,7 +1,7 @@
 import torch
-from .misc import _scaled_dot_product, _convert_to_tensor, _is_finite, _select_initial_step, _handle_unused_kwargs
-from .solvers import AdaptiveStepsizeODESolver
-from .rk_common import _RungeKuttaState, _ButcherTableau, _runge_kutta_step
+from misc import _scaled_dot_product, _convert_to_tensor, _is_finite, _select_initial_step, _handle_unused_kwargs
+from solvers import AdaptiveStepsizeODESolver
+from rk_common import _RungeKuttaState, _ButcherTableau, _runge_kutta_step
 
 # Parameters from Tsitouras (2011).
 _TSITOURAS_TABLEAU = _ButcherTableau(

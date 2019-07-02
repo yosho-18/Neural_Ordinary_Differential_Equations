@@ -1,5 +1,5 @@
 import torch
-from .misc import _convert_to_tensor, _dot_product
+from misc import _convert_to_tensor, _dot_product
 
 
 def _interp_fit(y0, y1, y_mid, f0, f1, dt):
