@@ -196,8 +196,8 @@ def normal_kl(mu1, lv1, mu2, lv2):
 
 if __name__ == '__main__':
     latent_dim = 4
-    nhidden = 20
-    rnn_nhidden = 25
+    nhidden = 20  # 隠れ層数
+    rnn_nhidden = 25  # RNNの隠れ層数
     obs_dim = 2
     nspiral = 1000
     start = 0.
