@@ -12,15 +12,18 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 
+# プログラム実行時にコマンドラインで引数を受け取る処理を簡単に実装できる標準ライブラリ
+# https://qiita.com/kzkadc/items/e4fc7bc9c003de1eb6d0
+parser = argparse.ArgumentParser()  # 2. パーサを作る
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--adjoint', type=eval, default=False)
+# 3. parser.add_argumentで受け取る引数を追加していく
+parser.add_argument('--adjoint', type=eval, default=False)  # オプション引数（指定しなくても良い引数）を追加
 parser.add_argument('--visualize', type=eval, default=False)
 parser.add_argument('--niters', type=int, default=2000)
 parser.add_argument('--lr', type=float, default=0.01)
 parser.add_argument('--gpu', type=int, default=0)
 parser.add_argument('--train_dir', type=str, default=None)
-args = parser.parse_args()
+args = parser.parse_args()  # 4. 引数を解析
 
 if args.adjoint:
     from torchdiffeq import odeint_adjoint as odeint
@@ -46,27 +49,29 @@ def generate_spiral2d(nspiral=1000,
       start: spiral starting theta value
       stop: spiral ending theta value
       noise_std: observation noise standard deviation
-      a, b: parameters of the Archimedean spiral
-      savefig: plot the ground truth for sanity check
+      a, b: parameters of the Archimedean spiral（アルキメデスの螺旋）
+      savefig: plot the ground truth for sanity check（正当性のチェック）
 
     Returns: 
       Tuple where first element is true trajectory of size (nspiral, ntotal, 2),
       second element is noisy observations of size (nspiral, nsample, 2),
-      third element is timestamps of size (ntotal,),
+      third element is timestamps（日時の刻印） of size (ntotal,),
       and fourth element is timestamps of size (nsample,)
     """
 
     # add 1 all timestamps to avoid division by 0
-    orig_ts = np.linspace(start, stop, num=ntotal)
+    orig_ts = np.linspace(start, stop, num=ntotal)  # num 省略可能。デフォルト50。生成する配列(ndarray)の要素数を指定します。
     samp_ts = orig_ts[:nsample]
 
     # generate clock-wise and counter clock-wise spirals in observation space
-    # with two sets of time-invariant latent dynamics
-    zs_cw = stop + 1. - orig_ts
-    rs_cw = a + b * 50. / zs_cw
-    xs, ys = rs_cw * np.cos(zs_cw) - 5., rs_cw * np.sin(zs_cw)
+    # with two sets of time-invariant（時不変系は、その出力が時間に明示的に依存していない系である。） latent dynamics
+    # 時計回り（逆方向）
+    zs_cw = stop + 1. - orig_ts  # 角度の回転と逆周りなので逆から考える，θを計算
+    rs_cw = a + b * 50. / zs_cw  # rを計算
+    xs, ys = rs_cw * np.cos(zs_cw) - 5., rs_cw * np.sin(zs_cw)  # 極座標をデカルト座標に変換
     orig_traj_cw = np.stack((xs, ys), axis=1)
 
+    # 反時計回り（順方向）
     zs_cc = orig_ts
     rw_cc = a + b * zs_cc
     xs, ys = rw_cc * np.cos(zs_cc) + 5., rw_cc * np.sin(zs_cc)
@@ -74,7 +79,7 @@ def generate_spiral2d(nspiral=1000,
 
     if savefig:
         plt.figure()
-        plt.plot(orig_traj_cw[:, 0], orig_traj_cw[:, 1], label='clock')
+        plt.plot(orig_traj_cw[:, 0], orig_traj_cw[:, 1], label='clock')#x座標,y座標
         plt.plot(orig_traj_cc[:, 0], orig_traj_cc[:, 1], label='counter clock')
         plt.legend()
         plt.savefig('./ground_truth.png', dpi=500)
@@ -86,23 +91,28 @@ def generate_spiral2d(nspiral=1000,
     for _ in range(nspiral):
         # don't sample t0 very near the start or the end
         t0_idx = npr.multinomial(
-            1, [1. / (ntotal - 2. * nsample)] * (ntotal - int(2 * nsample)))
-        t0_idx = np.argmax(t0_idx) + nsample
+            1, [1. / (ntotal - 2. * nsample)] * (ntotal - int(2 * nsample)))  # [0, 0, 0, ..1, ...0]
+        t0_idx = np.argmax(t0_idx) + nsample  # 最大値のmaxを返す
 
-        cc = bool(npr.rand() > .5)  # uniformly select rotation
+        cc = bool(npr.rand() > .5)  # uniformly select rotation，0<= npr.rand() <= 1
         orig_traj = orig_traj_cc if cc else orig_traj_cw
         orig_trajs.append(orig_traj)
 
         samp_traj = orig_traj[t0_idx:t0_idx + nsample, :].copy()
-        samp_traj += npr.randn(*samp_traj.shape) * noise_std
+        cnt = samp_traj.shape  # (100,2) *をつけると100 2
+        samp_traj += npr.randn(*cnt) * noise_std  # 標準正規分布 (平均0, 標準偏差1)
         samp_trajs.append(samp_traj)
 
     # batching for sample trajectories is good for RNN; batching for original
     # trajectories only for ease of indexing
-    orig_trajs = np.stack(orig_trajs, axis=0)
-    samp_trajs = np.stack(samp_trajs, axis=0)
+    orig_trajs = np.stack(orig_trajs, axis=0)  # 3次元配列，nspiral*100*2
+    samp_trajs = np.stack(samp_trajs, axis=0)  # 3次元配列，nspiral*100*2
 
     return orig_trajs, samp_trajs, orig_ts, samp_ts
+    # orig_trajs: orig_traj_cc or orig_traj_cw　がnspiral個
+    # sample_trajs: orig_trajsから取り出す．t0_idxからnsample個とる，ノイズも加える　がnspiral個
+    # orig_ts: 時間間隔，startからstopまで
+    # orig_ts: 時間間隔，orig_tsから取り出す．前半nsample個とる
 
 
 class LatentODEfunc(nn.Module):
@@ -207,6 +217,7 @@ if __name__ == '__main__':
     b = .3
     ntotal = 1000
     nsample = 100
+    # Tensor用にdeviceを定義
     device = torch.device('cuda:' + str(args.gpu)
                           if torch.cuda.is_available() else 'cpu')
 
@@ -218,7 +229,7 @@ if __name__ == '__main__':
         noise_std=noise_std,
         a=a, b=b
     )
-    orig_trajs = torch.from_numpy(orig_trajs).float().to(device)
+    orig_trajs = torch.from_numpy(orig_trajs).float().to(device)  # Creates a Tensor from a numpy.ndarray.
     samp_trajs = torch.from_numpy(samp_trajs).float().to(device)
     samp_ts = torch.from_numpy(samp_ts).float().to(device)
 
