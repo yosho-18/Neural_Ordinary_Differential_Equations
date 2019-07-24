@@ -92,7 +92,7 @@ def generate_spiral2d(nspiral=1000,
         # don't sample t0 very near the start or the end
         t0_idx = npr.multinomial(
             1, [1. / (ntotal - 2. * nsample)] * (ntotal - int(2 * nsample)))  # [0, 0, 0, ..1, ...0]
-        t0_idx = np.argmax(t0_idx) + nsample  # 最大値のmaxを返す
+        t0_idx = np.argmax(t0_idx) + nsample  # 最大値のindexを返す
 
         cc = bool(npr.rand() > .5)  # uniformly select rotation，0<= npr.rand() <= 1
         orig_traj = orig_traj_cc if cc else orig_traj_cw
@@ -109,7 +109,7 @@ def generate_spiral2d(nspiral=1000,
     samp_trajs = np.stack(samp_trajs, axis=0)  # 3次元配列，nspiral*100*2
 
     return orig_trajs, samp_trajs, orig_ts, samp_ts
-    # orig_trajs: orig_traj_cc or orig_traj_cw　がnspiral個
+    # orig_trajs: orig_traj_cc or orig_traj_cw　（アルキメデスの螺旋）　がnspiral個
     # sample_trajs: orig_trajsから取り出す．t0_idxからnsample個とる，ノイズも加える　がnspiral個
     # orig_ts: 時間間隔，startからstopまで
     # orig_ts: 時間間隔，orig_tsから取り出す．前半nsample個とる
@@ -118,9 +118,9 @@ def generate_spiral2d(nspiral=1000,
 class LatentODEfunc(nn.Module):
 
     def __init__(self, latent_dim=4, nhidden=20):
-        super(LatentODEfunc, self).__init__()
-        self.elu = nn.ELU(inplace=True)
-        self.fc1 = nn.Linear(latent_dim, nhidden)
+        super(LatentODEfunc, self).__init__()  # LatentODEfuncクラスのスーパークラスnn.Moduleを再利用
+        self.elu = nn.ELU(inplace=True)  # 活性化関数
+        self.fc1 = nn.Linear(latent_dim, nhidden)  #ノードからノードへの移り変わり
         self.fc2 = nn.Linear(nhidden, nhidden)
         self.fc3 = nn.Linear(nhidden, latent_dim)
         self.nfe = 0
@@ -237,7 +237,8 @@ if __name__ == '__main__':
     func = LatentODEfunc(latent_dim, nhidden).to(device)
     rec = RecognitionRNN(latent_dim, obs_dim, rnn_nhidden, nspiral).to(device)
     dec = Decoder(latent_dim, obs_dim, nhidden).to(device)
-    params = (list(func.parameters()) + list(dec.parameters()) + list(rec.parameters()))
+    f_p, d_p, r_p = list(func.parameters()), list(dec.parameters()), list(rec.parameters())
+    params = (f_p + d_p + r_p)
     optimizer = optim.Adam(params, lr=args.lr)
     loss_meter = RunningAverageMeter()
 
@@ -258,15 +259,15 @@ if __name__ == '__main__':
             print('Loaded ckpt from {}'.format(ckpt_path))
 
     try:
-        for itr in range(1, args.niters + 1):
+        for itr in range(1, args.niters + 1):  # epoch数args.niters
             optimizer.zero_grad()
             # backward in time to infer q(z_0)
-            h = rec.initHidden().to(device)
-            for t in reversed(range(samp_trajs.size(1))):
-                obs = samp_trajs[:, t, :]
-                out, h = rec.forward(obs, h)
+            h = rec.initHidden().to(device)  # h…層
+            for t in reversed(range(samp_trajs.size(1))):  # バッチ数100，100回行う，外から内に行くので逆から
+                obs = samp_trajs[:, t, :]  # その時刻をまとめて計算
+                out, h = rec.forward(obs, h)  # 順伝播していく
             qz0_mean, qz0_logvar = out[:, :latent_dim], out[:, latent_dim:]
-            epsilon = torch.randn(qz0_mean.size()).to(device)
+            epsilon = torch.randn(qz0_mean.size()).to(device)  # ε
             z0 = epsilon * torch.exp(.5 * qz0_logvar) + qz0_mean
 
             # forward in time and solve ode for reconstructions
