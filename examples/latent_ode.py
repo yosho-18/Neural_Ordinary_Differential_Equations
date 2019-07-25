@@ -18,8 +18,8 @@ parser = argparse.ArgumentParser()  # 2. パーサを作る
 
 # 3. parser.add_argumentで受け取る引数を追加していく
 parser.add_argument('--adjoint', type=eval, default=False)  # オプション引数（指定しなくても良い引数）を追加
-parser.add_argument('--visualize', type=eval, default=False)
-parser.add_argument('--niters', type=int, default=2000)
+parser.add_argument('--visualize', type=eval, default=True)  # default=False
+parser.add_argument('--niters', type=int, default=2000)  # default=2000
 parser.add_argument('--lr', type=float, default=0.01)
 parser.add_argument('--gpu', type=int, default=0)
 parser.add_argument('--train_dir', type=str, default=None)
@@ -271,8 +271,8 @@ if __name__ == '__main__':
             z0 = epsilon * torch.exp(.5 * qz0_logvar) + qz0_mean
 
             # forward in time and solve ode for reconstructions
-            pred_z = odeint(func, z0, samp_ts).permute(1, 0, 2)
-            pred_x = dec(pred_z)
+            pred_z = odeint(func, z0, samp_ts).permute(1, 0, 2)  # odeint(func, y0, t)，ODESolverを使う
+            pred_x = dec(pred_z)  # デコードする
 
             # compute loss
             noise_std_ = torch.zeros(pred_x.size()).to(device) + noise_std
@@ -346,5 +346,5 @@ if __name__ == '__main__':
         plt.scatter(samp_traj[:, 0], samp_traj[
                     :, 1], label='sampled data', s=3)
         plt.legend()
-        plt.savefig('./vis.png', dpi=500)
-        print('Saved visualization figure at {}'.format('./vis.png'))
+        plt.savefig('./vis2000.png', dpi=500)
+        print('Saved visualization figure at {}'.format('./vis2000.png'))
