@@ -112,7 +112,7 @@ def generate_spiral2d(nspiral=1000,
     # orig_trajs: orig_traj_cc or orig_traj_cw　（アルキメデスの螺旋）　がnspiral個
     # sample_trajs: orig_trajsから取り出す．t0_idxからnsample個とる，ノイズも加える　がnspiral個
     # orig_ts: 時間間隔，startからstopまで
-    # orig_ts: 時間間隔，orig_tsから取り出す．前半nsample個とる
+    # samp_ts: 時間間隔，orig_tsから取り出す．前半nsample個とる
 
 
 class LatentODEfunc(nn.Module):
@@ -120,7 +120,7 @@ class LatentODEfunc(nn.Module):
     def __init__(self, latent_dim=4, nhidden=20):
         super(LatentODEfunc, self).__init__()  # LatentODEfuncクラスのスーパークラスnn.Moduleを再利用
         self.elu = nn.ELU(inplace=True)  # 活性化関数
-        self.fc1 = nn.Linear(latent_dim, nhidden)  #ノードからノードへの移り変わり
+        self.fc1 = nn.Linear(latent_dim, nhidden)  # ノードからノードへの移り変わり
         self.fc2 = nn.Linear(nhidden, nhidden)
         self.fc3 = nn.Linear(nhidden, latent_dim)
         self.nfe = 0
@@ -222,6 +222,12 @@ if __name__ == '__main__':
                           if torch.cuda.is_available() else 'cpu')
 
     # generate toy spiral data
+
+    # orig_trajs: orig_traj_cc or orig_traj_cw　（アルキメデスの螺旋）　がnspiral個
+    # sample_trajs: orig_trajsから取り出す．t0_idxからnsample個とる，ノイズも加える　がnspiral個
+    # orig_ts: 時間間隔，startからstopまで
+    # samp_ts: 時間間隔，orig_tsから取り出す．前半nsample個とる
+
     orig_trajs, samp_trajs, orig_ts, samp_ts = generate_spiral2d(
         nspiral=nspiral,
         start=start,
