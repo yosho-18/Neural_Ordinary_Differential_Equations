@@ -19,7 +19,7 @@ parser = argparse.ArgumentParser()  # 2. パーサを作る
 # 3. parser.add_argumentで受け取る引数を追加していく
 parser.add_argument('--adjoint', type=eval, default=False)  # オプション引数（指定しなくても良い引数）を追加
 parser.add_argument('--visualize', type=eval, default=True)  # default=False
-parser.add_argument('--niters', type=int, default=2000)  # default=2000
+parser.add_argument('--niters', type=int, default=2)  # default=2000
 parser.add_argument('--lr', type=float, default=0.01)
 parser.add_argument('--gpu', type=int, default=0)
 parser.add_argument('--train_dir', type=str, default=None)
@@ -120,6 +120,7 @@ class LatentODEfunc(nn.Module):
     def __init__(self, latent_dim=4, nhidden=20):
         super(LatentODEfunc, self).__init__()  # LatentODEfuncクラスのスーパークラスnn.Moduleを再利用
         self.elu = nn.ELU(inplace=True)  # 活性化関数
+        # 線形結合を計算，回帰係数や切片項などのパラメータ,parameters=w
         self.fc1 = nn.Linear(latent_dim, nhidden)  # ノードからノードへの移り変わり
         self.fc2 = nn.Linear(nhidden, nhidden)
         self.fc3 = nn.Linear(nhidden, latent_dim)
@@ -137,14 +138,14 @@ class LatentODEfunc(nn.Module):
 
 class RecognitionRNN(nn.Module):
 
-    def __init__(self, latent_dim=4, obs_dim=2, nhidden=25, nbatch=1):
+    def __init__(self, latent_dim=4, obs_dim=2, nhidden=25, nbatch=1):  # obs_dim = len(x, y)
         super(RecognitionRNN, self).__init__()
         self.nhidden = nhidden
         self.nbatch = nbatch
         self.i2h = nn.Linear(obs_dim + nhidden, nhidden)
         self.h2o = nn.Linear(nhidden, latent_dim * 2)
 
-    def forward(self, x, h):
+    def forward(self, x, h):  # x = nspiral*2
         combined = torch.cat((x, h), dim=1)
         h = torch.tanh(self.i2h(combined))
         out = self.h2o(h)
@@ -188,13 +189,13 @@ class RunningAverageMeter(object):
         self.val = val
 
 
-def log_normal_pdf(x, mean, logvar):
+def log_normal_pdf(x, mean, logvar):  # samp_trajs, pred_x, noise_logvar
     const = torch.from_numpy(np.array([2. * np.pi])).float().to(x.device)
     const = torch.log(const)
     return -.5 * (const + logvar + (x - mean) ** 2. / torch.exp(logvar))
 
 
-def normal_kl(mu1, lv1, mu2, lv2):
+def normal_kl(mu1, lv1, mu2, lv2):  # qz0_mean, qz0_logvar, pz0_mean, pz0_logvar
     v1 = torch.exp(lv1)
     v2 = torch.exp(lv2)
     lstd1 = lv1 / 2.
@@ -206,8 +207,8 @@ def normal_kl(mu1, lv1, mu2, lv2):
 
 if __name__ == '__main__':
     latent_dim = 4
-    nhidden = 20  # 隠れ層数
-    rnn_nhidden = 25  # RNNの隠れ層数
+    nhidden = 20  # 隠れユニット数
+    rnn_nhidden = 25  # RNNの隠れユニット数
     obs_dim = 2
     nspiral = 1000
     start = 0.
@@ -272,22 +273,31 @@ if __name__ == '__main__':
             for t in reversed(range(samp_trajs.size(1))):  # バッチ数100，100回行う，外から内に行くので逆から
                 obs = samp_trajs[:, t, :]  # その時刻をまとめて計算
                 out, h = rec.forward(obs, h)  # 順伝播していく
+            # outはt = 0以外使っていない，hは前のものを伝播している
+
+            # このあたりが謎（q:RNNの出力）-------------------------------------------------
             qz0_mean, qz0_logvar = out[:, :latent_dim], out[:, latent_dim:]
             epsilon = torch.randn(qz0_mean.size()).to(device)  # ε
+            # z0:nspiral*latent_dim(4)
             z0 = epsilon * torch.exp(.5 * qz0_logvar) + qz0_mean
+            # ---------------------------------------------------------------
 
             # forward in time and solve ode for reconstructions
             pred_z = odeint(func, z0, samp_ts).permute(1, 0, 2)  # odeint(func, y0, t)，ODESolverを使う
+            # pred_x:nspiral*obs_dim(2)
             pred_x = dec(pred_z)  # デコードする
 
             # compute loss
+            # このあたりが謎（何かしらのlossを計算している）-----------------
             noise_std_ = torch.zeros(pred_x.size()).to(device) + noise_std
             noise_logvar = 2. * torch.log(noise_std_).to(device)
             logpx = log_normal_pdf(
                 samp_trajs, pred_x, noise_logvar).sum(-1).sum(-1)
+
             pz0_mean = pz0_logvar = torch.zeros(z0.size()).to(device)
             analytic_kl = normal_kl(qz0_mean, qz0_logvar,
                                     pz0_mean, pz0_logvar).sum(-1)
+            # ---------------------------------------------------------------
             loss = torch.mean(-logpx + analytic_kl, dim=0)
             loss.backward()
             optimizer.step()
@@ -335,6 +345,7 @@ if __name__ == '__main__':
             zs_neg = odeint(func, z0, ts_neg)
 
             xs_pos = dec(zs_pos)
+            # [::-1]
             xs_neg = torch.flip(dec(zs_neg), dims=[0])
 
         xs_pos = xs_pos.cpu().numpy()
