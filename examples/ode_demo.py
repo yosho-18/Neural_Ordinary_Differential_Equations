@@ -12,9 +12,9 @@ parser.add_argument('--method', type=str, choices=['dopri5', 'adams'], default='
 parser.add_argument('--data_size', type=int, default=1000)
 parser.add_argument('--batch_time', type=int, default=10)
 parser.add_argument('--batch_size', type=int, default=20)
-parser.add_argument('--niters', type=int, default=2000)
+parser.add_argument('--niters', type=int, default=100)
 parser.add_argument('--test_freq', type=int, default=20)
-parser.add_argument('--viz', action='store_true')
+parser.add_argument('--viz', action='store_true', default=True)
 parser.add_argument('--gpu', type=int, default=0)
 parser.add_argument('--adjoint', action='store_true')
 args = parser.parse_args()
@@ -26,15 +26,15 @@ else:
 
 device = torch.device('cuda:' + str(args.gpu) if torch.cuda.is_available() else 'cpu')
 
-true_y0 = torch.tensor([[2., 0.]])
-t = torch.linspace(0., 25., args.data_size)
+true_y0 = torch.tensor([[2., 0.]])  # yの初期値
+t = torch.linspace(0., 25., args.data_size)  # 0～25まで1000刻み
 true_A = torch.tensor([[-0.1, 2.0], [-2.0, -0.1]])
 
 
 class Lambda(nn.Module):
 
     def forward(self, t, y):
-        return torch.mm(y**3, true_A)
+        return torch.mm(y**3, true_A)  # 行列計算
 
 
 with torch.no_grad():
@@ -42,7 +42,7 @@ with torch.no_grad():
 
 
 def get_batch():
-    s = torch.from_numpy(np.random.choice(np.arange(args.data_size - args.batch_time, dtype=np.int64), args.batch_size, replace=False))
+    s = torch.from_numpy(np.random.choice(np.arange(args.data_size - args.batch_time, dtype=np.int64), args.batch_size, replace=False))  # 990のうちから20個選ぶ
     batch_y0 = true_y[s]  # (M, D)
     batch_t = t[:args.batch_time]  # (T)
     batch_y = torch.stack([true_y[s + i] for i in range(args.batch_time)], dim=0)  # (T, M, D)
@@ -58,7 +58,7 @@ if args.viz:
     makedirs('png')
     import matplotlib.pyplot as plt
     fig = plt.figure(figsize=(12, 4), facecolor='white')
-    ax_traj = fig.add_subplot(131, frameon=False)
+    ax_traj = fig.add_subplot(131, frameon=False)  # 1*3の1番目
     ax_phase = fig.add_subplot(132, frameon=False)
     ax_vecfield = fig.add_subplot(133, frameon=False)
     plt.show(block=False)
@@ -72,8 +72,8 @@ def visualize(true_y, pred_y, odefunc, itr):
         ax_traj.set_title('Trajectories')
         ax_traj.set_xlabel('t')
         ax_traj.set_ylabel('x,y')
-        ax_traj.plot(t.numpy(), true_y.numpy()[:, 0, 0], t.numpy(), true_y.numpy()[:, 0, 1], 'g-')
-        ax_traj.plot(t.numpy(), pred_y.numpy()[:, 0, 0], '--', t.numpy(), pred_y.numpy()[:, 0, 1], 'b--')
+        ax_traj.plot(t.numpy(), true_y.numpy()[:, 0, 0], t.numpy(), true_y.numpy()[:, 0, 1], 'g-')  # 水色，実線の緑色（正解）
+        ax_traj.plot(t.numpy(), pred_y.numpy()[:, 0, 0], '--', t.numpy(), pred_y.numpy()[:, 0, 1], 'b--')  # 橙，破線の青色（予測）
         ax_traj.set_xlim(t.min(), t.max())
         ax_traj.set_ylim(-2, 2)
         ax_traj.legend()
@@ -92,11 +92,13 @@ def visualize(true_y, pred_y, odefunc, itr):
         ax_vecfield.set_xlabel('x')
         ax_vecfield.set_ylabel('y')
 
+        # ここの解釈が少し難しいので一旦パス----
         y, x = np.mgrid[-2:2:21j, -2:2:21j]
         dydt = odefunc(0, torch.Tensor(np.stack([x, y], -1).reshape(21 * 21, 2))).cpu().detach().numpy()
         mag = np.sqrt(dydt[:, 0]**2 + dydt[:, 1]**2).reshape(-1, 1)
         dydt = (dydt / mag)
         dydt = dydt.reshape(21, 21, 2)
+        # --------------------------------------
 
         ax_vecfield.streamplot(x, y, dydt[:, :, 0], dydt[:, :, 1], color="black")
         ax_vecfield.set_xlim(-2, 2)
@@ -121,8 +123,9 @@ class ODEFunc(nn.Module):
 
         for m in self.net.modules():
             if isinstance(m, nn.Linear):
-                nn.init.normal_(m.weight, mean=0, std=0.1)
-                nn.init.constant_(m.bias, val=0)
+                # ここ何をやっている？
+                nn.init.normal_(m.weight, mean=0, std=0.1)  # m.weightが変わる．入力テンソルを正規分布から引き出された値で埋めます（mean、std ^ 2）N（平均、標準）
+                nn.init.constant_(m.bias, val=0)  # 入力テンソルを値で埋めます val=0
 
     def forward(self, t, y):
         return self.net(y**3)
