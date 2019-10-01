@@ -1,10 +1,5 @@
 # odeint(func, z0, samp_ts)を読み解く
-# This library provides one main interface odeint which contains general-purpose algorithms for solving initial value problems (IVP),
-# with gradients implemented for all main arguments. An initial value problem consists of an ODE and an initial value,
 
-# where func is any callable implementing the ordinary differential equation f(t, x),
-# y0 is an any-D Tensor or a tuple of any-D Tensors representing the initial values,
-# and t is a 1-D Tensor containing the evaluation points. The initial time is taken to be t[0].
 
 import os
 import argparse
@@ -218,7 +213,7 @@ if __name__ == '__main__':
     nhidden = 20  # 隠れユニット数
     rnn_nhidden = 25  # RNNの隠れユニット数
     obs_dim = 2
-    nspiral = 1  # 1
+    nspiral = 999  # 1
     start = 0.
     stop = 6 * np.pi
     noise_std = .3
@@ -226,6 +221,8 @@ if __name__ == '__main__':
     b = .3
     ntotal = 1000
     nsample = 400
+    cnt = 0
+    cri = 10
     # Tensor用にdeviceを定義
     device = torch.device('cuda:' + str(args.gpu)
                           if torch.cuda.is_available() else 'cpu')
@@ -319,6 +316,56 @@ if __name__ == '__main__':
 
             print('Iter: {}, running avg elbo: {:.4f}'.format(itr, -loss_meter.avg))
 
+            if args.visualize:
+                if itr % 100 == 0:
+                    cnt += 1
+                    cri = loss_meter.avg
+                    with torch.no_grad():
+                        # sample from trajectorys' approx. posterior
+                        h = rec.initHidden().to(device)
+                        for t in reversed(range(samp_trajs.size(1))):
+                            obs = samp_trajs[:, t, :]
+                            out, h = rec.forward(obs, h)
+                        qz0_mean, qz0_logvar = out[:, :latent_dim], out[:, latent_dim:]
+                        epsilon = torch.randn(qz0_mean.size()).to(device)
+                        z0 = epsilon * torch.exp(.5 * qz0_logvar) + qz0_mean
+                        if cnt == 1:
+                            orig_ts = torch.from_numpy(orig_ts).float().to(device)
+
+                        # take first trajectory for visualization
+                        z0 = z0[0]
+
+                        ts_pos = np.linspace(0., 2. * np.pi, num=2000)  # 正の予想（予測）
+                        ts_neg = np.linspace(-2. * np.pi, 0., num=2000)[::-1].copy()  # 負の予想（外挿）
+                        ts_pos = torch.from_numpy(ts_pos).float().to(device)
+                        ts_neg = torch.from_numpy(ts_neg).float().to(device)
+
+                        zs_pos = odeint(func, z0, ts_pos)
+                        zs_neg = odeint(func, z0, ts_neg)
+
+                        xs_pos = dec(zs_pos)  # 正の予測
+                        # [::-1]
+                        xs_neg = torch.flip(dec(zs_neg), dims=[0])  # 負の予測
+
+                    xs_pos = xs_pos.cpu().numpy()
+                    xs_neg = xs_neg.cpu().numpy()
+                    orig_traj = orig_trajs[0].cpu().numpy()
+                    samp_traj = samp_trajs[0].cpu().numpy()
+
+                    plt.figure()
+                    plt.plot(orig_traj[:, 0], orig_traj[:, 1], "g", label='true trajectory')
+                    plt.plot(xs_pos[:, 0], xs_pos[:, 1], 'r',
+                             label='learned trajectory (t>0)')
+                    plt.plot(xs_neg[:, 0], xs_neg[:, 1], 'c',
+                             label='learned trajectory (t<0)')
+                    plt.scatter(samp_traj[:, 0], samp_traj[:, 1], label='sampled data', s=3, c='#ff7f00')
+                    plt.legend()
+
+                    plt.savefig('./400nsample/ajoint{}_{}.png'.format(itr, loss_meter.avg), dpi=500)
+
+
+                    print('Saved visualization figure at {}'.format('./vis' + str(itr) + 'new.png'))
+
     except KeyboardInterrupt:
         if args.train_dir is not None:
             ckpt_path = os.path.join(args.train_dir, 'ckpt.pth')
@@ -334,48 +381,3 @@ if __name__ == '__main__':
             }, ckpt_path)
             print('Stored ckpt at {}'.format(ckpt_path))
     print('Training complete after {} iters.'.format(itr))
-
-    if args.visualize:
-        with torch.no_grad():
-            # sample from trajectorys' approx. posterior
-            h = rec.initHidden().to(device)
-            for t in reversed(range(samp_trajs.size(1))):
-                obs = samp_trajs[:, t, :]
-                out, h = rec.forward(obs, h)
-            qz0_mean, qz0_logvar = out[:, :latent_dim], out[:, latent_dim:]
-            epsilon = torch.randn(qz0_mean.size()).to(device)
-            z0 = epsilon * torch.exp(.5 * qz0_logvar) + qz0_mean
-            orig_ts = torch.from_numpy(orig_ts).float().to(device)
-
-            # take first trajectory for visualization
-            z0 = z0[0]
-
-            ts_pos = np.linspace(0., 2. * np.pi, num=2000)  # 正の予想（予測）
-            ts_neg = np.linspace(-np.pi, 0., num=2000)[::-1].copy()  # 負の予想（外挿）
-            ts_pos = torch.from_numpy(ts_pos).float().to(device)
-            ts_neg = torch.from_numpy(ts_neg).float().to(device)
-
-            zs_pos = odeint(func, z0, ts_pos)
-            zs_neg = odeint(func, z0, ts_neg)
-
-            xs_pos = dec(zs_pos)  # 正の予測
-            # [::-1]
-            xs_neg = torch.flip(dec(zs_neg), dims=[0])  # 負の予測
-
-        xs_pos = xs_pos.cpu().numpy()
-        xs_neg = xs_neg.cpu().numpy()
-        orig_traj = orig_trajs[0].cpu().numpy()
-        samp_traj = samp_trajs[0].cpu().numpy()
-
-        plt.figure()
-        plt.plot(orig_traj[:, 0], orig_traj[:, 1],
-                 'g', label='true trajectory')
-        plt.plot(xs_pos[:, 0], xs_pos[:, 1], 'r',
-                 label='learned trajectory (t>0)')
-        plt.plot(xs_neg[:, 0], xs_neg[:, 1], 'c',
-                 label='learned trajectory (t<0)')
-        plt.scatter(samp_traj[:, 0], samp_traj[
-                    :, 1], label='sampled data', s=3, c='#984ea3')
-        plt.legend()
-        plt.savefig('./400nsample/vis{}_{}.png'.format(itr, loss_meter.avg), dpi=500)
-        print('Saved visualization figure at {}'.format('./vis2000_aj.png'))

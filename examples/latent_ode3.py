@@ -22,7 +22,7 @@ parser = argparse.ArgumentParser()  # 2. パーサを作る
 # 3. parser.add_argumentで受け取る引数を追加していく
 parser.add_argument('--adjoint', type=eval, default=False)  # オプション引数（指定しなくても良い引数）を追加
 parser.add_argument('--visualize', type=eval, default=True)  # default=False
-parser.add_argument('--niters', type=int, default=20000)  # default=2000
+parser.add_argument('--niters', type=int, default=2000)  # default=2000
 parser.add_argument('--lr', type=float, default=0.01)
 parser.add_argument('--gpu', type=int, default=0)
 parser.add_argument('--train_dir', type=str, default=None)
@@ -220,7 +220,7 @@ if __name__ == '__main__':
     a = 0.
     b = .3
     ntotal = 1000
-    nsample = 100
+    nsample = 400
     cnt = 0
     cri = 10
     # Tensor用にdeviceを定義
@@ -236,6 +236,8 @@ if __name__ == '__main__':
 
     orig_trajs, samp_trajs, orig_ts, samp_ts = generate_spiral2d(
         nspiral=nspiral,
+        ntotal=ntotal,
+        nsample=nsample,
         start=start,
         stop=stop,
         noise_std=noise_std,
@@ -315,7 +317,7 @@ if __name__ == '__main__':
             print('Iter: {}, running avg elbo: {:.4f}'.format(itr, -loss_meter.avg))
 
             if args.visualize:
-                if itr % 10 == 0:
+                if itr % 100 == 0:
                     cnt += 1
                     cri = loss_meter.avg
                     with torch.no_grad():
@@ -351,17 +353,16 @@ if __name__ == '__main__':
                     samp_traj = samp_trajs[0].cpu().numpy()
 
                     plt.figure()
-                    plt.scatter(orig_traj[:, 0], orig_traj[:, 1], label='true trajectory')
+                    plt.plot(orig_traj[:, 0], orig_traj[:, 1], "g", label='true trajectory')
                     plt.plot(xs_pos[:, 0], xs_pos[:, 1], 'r',
                              label='learned trajectory (t>0)')
                     plt.plot(xs_neg[:, 0], xs_neg[:, 1], 'c',
                              label='learned trajectory (t<0)')
-                    plt.scatter(samp_traj[:, 0], samp_traj[:, 1], label='sampled data', s=3)
+                    plt.scatter(samp_traj[:, 0], samp_traj[:, 1], label='sampled data', s=3, c='#ff7f00')
                     plt.legend()
 
-                    plt.savefig('./lode2png/vis{}_{}_ode.png'.format(itr, loss_meter.avg), dpi=500)
+                    plt.savefig('./400nsample/vis{}_{}.png'.format(itr, loss_meter.avg), dpi=500)
 
-                    plt.savefig('./lode2png_note/vis{}_ns999_{}.png'.format(itr, loss_meter.avg), dpi=500)
 
                     print('Saved visualization figure at {}'.format('./vis' + str(itr) + 'new.png'))
 
