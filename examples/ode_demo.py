@@ -19,6 +19,7 @@ parser.add_argument('--gpu', type=int, default=0)
 parser.add_argument('--adjoint', action='store_true')
 args = parser.parse_args()
 
+
 if args.adjoint:
     from torchdiffeq import odeint_adjoint as odeint
 else:
