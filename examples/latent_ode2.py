@@ -315,7 +315,7 @@ if __name__ == '__main__':
             print('Iter: {}, running avg elbo: {:.4f}'.format(itr, -loss_meter.avg))
 
             if args.visualize:
-                if itr % 10000 == 0:
+                if itr % 10 == 0:
                     cnt += 1
                     cri = loss_meter.avg
                     with torch.no_grad():
@@ -351,16 +351,14 @@ if __name__ == '__main__':
                     samp_traj = samp_trajs[0].cpu().numpy()
 
                     plt.figure()
-                    plt.plot(orig_traj[:, 0], orig_traj[:, 1],
-                             'g', label='true trajectory')
+                    plt.scatter(orig_traj[:, 0], orig_traj[:, 1], label='true trajectory')
                     plt.plot(xs_pos[:, 0], xs_pos[:, 1], 'r',
                              label='learned trajectory (t>0)')
                     plt.plot(xs_neg[:, 0], xs_neg[:, 1], 'c',
                              label='learned trajectory (t<0)')
-                    plt.scatter(samp_traj[:, 0], samp_traj[
-                                                 :, 1], label='sampled data', s=3)
+                    plt.scatter(samp_traj[:, 0], samp_traj[:, 1], label='sampled data', s=3)
                     plt.legend()
-                    plt.savefig('./lode2png/vis{}_{}.png'.format(itr, loss_meter.avg), dpi=500)
+                    plt.savefig('./lode2png/vis{}_{}_ode.png'.format(itr, loss_meter.avg), dpi=500)
                     print('Saved visualization figure at {}'.format('./vis' + str(itr) + 'new.png'))
 
     except KeyboardInterrupt:

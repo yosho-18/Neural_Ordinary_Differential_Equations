@@ -1,5 +1,10 @@
 # odeint(func, z0, samp_ts)を読み解く
+# This library provides one main interface odeint which contains general-purpose algorithms for solving initial value problems (IVP),
+# with gradients implemented for all main arguments. An initial value problem consists of an ODE and an initial value,
 
+# where func is any callable implementing the ordinary differential equation f(t, x),
+# y0 is an any-D Tensor or a tuple of any-D Tensors representing the initial values,
+# and t is a 1-D Tensor containing the evaluation points. The initial time is taken to be t[0].
 
 import os
 import argparse
@@ -20,9 +25,9 @@ import torch.nn.functional as F
 parser = argparse.ArgumentParser()  # 2. パーサを作る
 
 # 3. parser.add_argumentで受け取る引数を追加していく
-parser.add_argument('--adjoint', type=eval, default=False)  # オプション引数（指定しなくても良い引数）を追加
+parser.add_argument('--adjoint', type=eval, default=True)  # オプション引数（指定しなくても良い引数）を追加
 parser.add_argument('--visualize', type=eval, default=True)  # default=False
-parser.add_argument('--niters', type=int, default=500000)  # default=2000
+parser.add_argument('--niters', type=int, default=1000)  # default=2000
 parser.add_argument('--lr', type=float, default=0.01)
 parser.add_argument('--gpu', type=int, default=0)
 parser.add_argument('--train_dir', type=str, default=None)
@@ -370,5 +375,5 @@ if __name__ == '__main__':
         plt.scatter(samp_traj[:, 0], samp_traj[
                     :, 1], label='sampled data', s=3)
         plt.legend()
-        plt.savefig('./vis10000.png', dpi=500)
-        print('Saved visualization figure at {}'.format('./vis10000new.png'))
+        plt.savefig('./vis500_aj.png', dpi=500)
+        print('Saved visualization figure at {}'.format('./vis2000_ajnew.png'))
