@@ -22,7 +22,7 @@ parser = argparse.ArgumentParser()  # 2. パーサを作る
 # 3. parser.add_argumentで受け取る引数を追加していく
 parser.add_argument('--adjoint', type=eval, default=False)  # オプション引数（指定しなくても良い引数）を追加
 parser.add_argument('--visualize', type=eval, default=True)  # default=False
-parser.add_argument('--niters', type=int, default=1000000)  # default=2000
+parser.add_argument('--niters', type=int, default=20000)  # default=2000
 parser.add_argument('--lr', type=float, default=0.01)
 parser.add_argument('--gpu', type=int, default=0)
 parser.add_argument('--train_dir', type=str, default=None)
@@ -213,7 +213,7 @@ if __name__ == '__main__':
     nhidden = 20  # 隠れユニット数
     rnn_nhidden = 25  # RNNの隠れユニット数
     obs_dim = 2
-    nspiral = 1  # 1
+    nspiral = 999  # 1
     start = 0.
     stop = 6 * np.pi
     noise_std = .3
@@ -334,7 +334,7 @@ if __name__ == '__main__':
                         z0 = z0[0]
 
                         ts_pos = np.linspace(0., 2. * np.pi, num=2000)  # 正の予想（予測）
-                        ts_neg = np.linspace(-np.pi, 0., num=2000)[::-1].copy()  # 負の予想（外挿）
+                        ts_neg = np.linspace(-2. * np.pi, 0., num=2000)[::-1].copy()  # 負の予想（外挿）
                         ts_pos = torch.from_numpy(ts_pos).float().to(device)
                         ts_neg = torch.from_numpy(ts_neg).float().to(device)
 
@@ -358,7 +358,11 @@ if __name__ == '__main__':
                              label='learned trajectory (t<0)')
                     plt.scatter(samp_traj[:, 0], samp_traj[:, 1], label='sampled data', s=3)
                     plt.legend()
+
                     plt.savefig('./lode2png/vis{}_{}_ode.png'.format(itr, loss_meter.avg), dpi=500)
+
+                    plt.savefig('./lode2png_note/vis{}_ns999_{}.png'.format(itr, loss_meter.avg), dpi=500)
+
                     print('Saved visualization figure at {}'.format('./vis' + str(itr) + 'new.png'))
 
     except KeyboardInterrupt:
