@@ -22,7 +22,7 @@ parser = argparse.ArgumentParser()  # 2. パーサを作る
 # 3. parser.add_argumentで受け取る引数を追加していく
 parser.add_argument('--adjoint', type=eval, default=False)  # オプション引数（指定しなくても良い引数）を追加
 parser.add_argument('--visualize', type=eval, default=True)  # default=False
-parser.add_argument('--niters', type=int, default=6000)  # default=2000
+parser.add_argument('--niters', type=int, default=10000)  # default=2000
 parser.add_argument('--lr', type=float, default=0.01)
 parser.add_argument('--gpu', type=int, default=0)
 parser.add_argument('--train_dir', type=str, default=None)
@@ -317,7 +317,7 @@ if __name__ == '__main__':
             print('Iter: {}, running avg elbo: {:.4f}'.format(itr, -loss_meter.avg))
 
             if args.visualize:
-                if itr % 200 == 0:
+                if itr % 500 == 0:
                     cnt += 1
                     cri = loss_meter.avg
                     with torch.no_grad():
