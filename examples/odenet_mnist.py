@@ -308,6 +308,7 @@ if __name__ == '__main__':
 
     logger.info(model)
     logger.info('Number of parameters: {}'.format(count_parameters(model)))
+    print(count_parameters(model))
 
     criterion = nn.CrossEntropyLoss().to(device)
 
