@@ -163,6 +163,7 @@ if __name__ == '__main__':
     loss_meter = RunningAverageMeter(0.97)
 
     for itr in range(1, args.niters + 1):
+        print("--------------" + str(itr) + "------------------")
         optimizer.zero_grad()
         batch_y0, batch_t, batch_y = get_batch()
         pred_y = odeint(func, batch_y0, batch_t)
